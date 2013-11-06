@@ -49,7 +49,7 @@ from pymongo.errors import OperationFailure, AutoReconnect
 PORTS_ONE = {"PRIMARY": "27117", "SECONDARY": "27118", "ARBITER": "27119",
              "CONFIG": "27220", "MONGOS": "27217"}
 NUMBER_OF_DOC_DIRS = 100
-HOSTNAME = os.environ.get('HOSTNAME', socket.gethostname())
+HOSTNAME = os.environ.get('HOSTNAME', "localhost")
 PORTS_ONE['MONGOS'] = os.environ.get('MAIN_ADDR', "27217")
 CONFIG = os.environ.get('CONFIG', "config.txt")
 

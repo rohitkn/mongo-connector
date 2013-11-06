@@ -43,7 +43,7 @@ from requests.exceptions import MissingSchema
 PORTS_ONE = {"PRIMARY": "27117", "SECONDARY": "27118", "ARBITER": "27119",
              "CONFIG": "27220", "MAIN": "27217"}
 NUMBER_OF_DOC_DIRS = 100
-HOSTNAME = os.environ.get('HOSTNAME', socket.gethostname())
+HOSTNAME = os.environ.get('HOSTNAME', "localhost")
 MAIN_ADDR = os.environ.get('MAIN_ADDR', "27217")
 CONFIG = os.environ.get('CONFIG', "config.txt")
 PORTS_ONE['MAIN'] = MAIN_ADDR

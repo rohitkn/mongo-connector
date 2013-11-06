@@ -33,7 +33,7 @@ from tests.setup_cluster import start_cluster, kill_all
 from bson.timestamp import Timestamp
 from mongo_connector.util import long_to_bson_ts
 
-HOSTNAME = os.environ.get('HOSTNAME', socket.gethostname())
+HOSTNAME = os.environ.get('HOSTNAME', "localhost")
 MAIN_ADDR = os.environ.get('MAIN_ADDR', "27217")
 MAIN_ADDRESS = "%s:%s" % (HOSTNAME, MAIN_ADDR)
 CONFIG = os.environ.get('CONFIG', "config.txt")

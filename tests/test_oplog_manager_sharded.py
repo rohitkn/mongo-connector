@@ -62,7 +62,7 @@ MONGOD_KSTR = " --dbpath " + DEMO_SERVER_DATA
 MONGOS_KSTR = "mongos --port " + PORTS_ONE["MONGOS"]
 AUTH_FILE = os.environ.get('AUTH_FILE', None)
 AUTH_USERNAME = os.environ.get('AUTH_USERNAME', None)
-HOSTNAME = os.environ.get('HOSTNAME', socket.gethostname())
+HOSTNAME = os.environ.get('HOSTNAME', "localhost")
 TEMP_CONFIG = os.environ.get('TEMP_CONFIG', "temp_config.txt")
 CONFIG = os.environ.get('CONFIG', "config.txt")
 
