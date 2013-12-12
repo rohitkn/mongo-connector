@@ -27,10 +27,7 @@
 import logging
 import bson.json_util as bsjson
 
-from pyes import ES, ESRange, RangeQuery, MatchAllQuery, TextQuery
-from pyes.exceptions import (IndexMissingException,
-                             NotFoundException,
-                             TypeMissingException)
+from elasticsearch import Elasticsearch
 from threading import Timer
 from mongo_connector.util import retry_until_ok
 
@@ -49,7 +46,7 @@ class DocManager():
     def __init__(self, url, auto_commit=True, unique_key='_id'):
         """ Establish a connection to Elastic
         """
-        self.elastic = ES(server=url)
+        self.elastic = Elasticsearch(hosts=[url])
         self.auto_commit = auto_commit
         self.doc_type = 'string'  # default type is string, change if needed
         self.unique_key = unique_key
@@ -74,56 +71,67 @@ class DocManager():
         index = doc['ns']
         doc[self.unique_key] = str(doc[self.unique_key])
         doc_id = doc[self.unique_key]
-        id_query = TextQuery('_id', doc_id)
-        elastic_cursor = self.elastic.search(query=id_query, indices=index)
-
-        try:
-            self.elastic.index(bsjson.dumps(doc), index, doc_type, doc_id)
-        except ValueError:
-            logging.info("Could not update %s" % (doc,))
-        self.elastic.refresh()
+        # TODO: Exception handling
+        self.elastic.index(index, doc_type, bsjson.dumps(doc),
+                           id=doc_id, refresh=True)
 
     def remove(self, doc):
         """Removes documents from Elastic
 
         The input is a python dictionary that represents a mongo document.
         """
-        try:
-            self.elastic.delete(doc['ns'], 'string', str(doc[self.unique_key]))
-        except (NotFoundException, TypeMissingException, IndexMissingException):
-            pass
+        # TODO: Exception handling
+        self.elastic.delete(doc['ns'], self.doc_type,
+                            str(doc[self.unique_key]), refresh=True)
 
     def _remove(self):
         """For test purposes only. Removes all documents in test.test
         """
-        try:
-            self.elastic.delete('test.test', 'string', '')
-        except (NotFoundException, TypeMissingException, IndexMissingException):
-            pass
+        # TODO: Exception handling
+        self.elastic.delete_by_query("test.test", self.doc_type,
+                                     {"match_all":{}})
+        self.commit()
+
+    def _stream_search(self, *args, **kwargs):
+        """Helper method for streaming results from Elastic"""
+        start = 0
+        step = 10
+        while True:
+            response = self.elastic.search(*args, from_=start,
+                                           size=step, **kwargs)
+            hitcount = response.get("hits",{}).get("total",0)
+            if start < hitcount:
+                for doc in response["hits"].get("hits",[]):
+                    yield doc["_source"]
+            else:
+                raise StopIteration
+            start += step
 
     def search(self, start_ts, end_ts):
         """Called to query Elastic for documents in a time range.
         """
-        res = ESRange('_ts', from_value=start_ts, to_value=end_ts)
-        results = self.elastic.search(RangeQuery(res))
-        return results
+        return self._stream_search("_all",
+                                   body={"query": {"range": {"_ts": {
+                                       "gte":start_ts,
+                                       "lte":end_ts
+                                   }}}})
 
     def _search(self):
         """For test purposes only. Performs search on Elastic with empty query.
         Does not have to be implemented.
         """
-        results = self.elastic.search(MatchAllQuery(), indices=("test.test",))
-        return results
+        return self._stream_search("test.test",
+                                   body={"query": {"match_all": {}}})
 
     def commit(self):
         """This function is used to force a refresh/commit.
         """
-        retry_until_ok(self.elastic.refresh)
+        retry_until_ok(self.elastic.indices.refresh, index="")
 
     def run_auto_commit(self):
         """Periodically commits to the Elastic server.
         """
-        self.elastic.refresh()
+        self.elastic.indices.refresh()
 
         if self.auto_commit:
             Timer(1, self.run_auto_commit).start()
@@ -132,6 +140,14 @@ class DocManager():
         """Returns the last document stored in the Elastic engine.
         """
 
-        result = self.elastic.search(MatchAllQuery(), size=1, sort='_ts:desc')
-        for item in result:
-            return item
+        result = self.elastic.search(
+            "_all",
+            body={
+                "query": {"match_all": {}},
+                "sort": [{"_ts":"desc"}]
+            },
+            size=1
+        )["hits"]["hits"]
+        # TODO: Is this always the format this this will take?
+        # Is there a simpler, API way of getting at the real document?
+        return result[0]["_source"] if len(result) > 0 else None
