@@ -6,7 +6,7 @@ import time
 import sys
 import inspect
 import os
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, exceptions as es_exceptions
 
 sys.path[0:0] = [""]
 
@@ -32,9 +32,12 @@ class elastic_docManagerTester(unittest.TestCase):
     def setUp(self):
         """Empty ElasticSearch at the start of every test
         """
-        # TODO: exception handling?
-        self.elastic_conn.delete_by_query("test.test", "string",
-                                          {"match_all":{}})
+        try:
+            self.elastic_conn.delete_by_query("test.test", "string",
+                                              {"match_all":{}})
+        except (es_exceptions.ConnectionError,
+                es_exceptions.TransportError):
+            pass
 
     def test_upsert(self):
         """Ensure we can properly insert into ElasticSearch via DocManager.

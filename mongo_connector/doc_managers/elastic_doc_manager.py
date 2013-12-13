@@ -27,7 +27,8 @@
 import logging
 import bson.json_util as bsjson
 
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, exceptions as es_exceptions
+from mongo_connector import errors
 from threading import Timer
 from mongo_connector.util import retry_until_ok
 
@@ -66,30 +67,43 @@ class DocManager():
         that field. (e.g. doc_type = doc['_type'])
 
         """
-
         doc_type = self.doc_type
         index = doc['ns']
         doc[self.unique_key] = str(doc[self.unique_key])
         doc_id = doc[self.unique_key]
-        # TODO: Exception handling
-        self.elastic.index(index, doc_type, bsjson.dumps(doc),
-                           id=doc_id, refresh=True)
+        try:
+            self.elastic.index(index, doc_type, bsjson.dumps(doc),
+                               id=doc_id, refresh=True)
+        except (es_exceptions.ConnectionError):
+            raise errors.ConnectionFailed("Could not connect to Elastic Search")
+        except es_exceptions.TransportError:
+            raise errors.OperationFailed("Could not index document: %s"%(
+                bsjson.dumps(doc)))
 
     def remove(self, doc):
         """Removes documents from Elastic
 
         The input is a python dictionary that represents a mongo document.
         """
-        # TODO: Exception handling
-        self.elastic.delete(doc['ns'], self.doc_type,
-                            str(doc[self.unique_key]), refresh=True)
+        try:
+            self.elastic.delete(doc['ns'], self.doc_type,
+                                str(doc[self.unique_key]), refresh=True)
+        except (es_exceptions.ConnectionError):
+            raise errors.ConnectionFailed("Could not connect to Elastic Search")
+        except es_exceptions.TransportError:
+            raise errors.OperationFailed("Could not index document: %s"%(
+                bsjson.dumps(doc)))
 
     def _remove(self):
         """For test purposes only. Removes all documents in test.test
         """
-        # TODO: Exception handling
-        self.elastic.delete_by_query("test.test", self.doc_type,
-                                     {"match_all":{}})
+        try:
+            self.elastic.delete_by_query("test.test", self.doc_type,
+                                         {"match_all":{}})
+        except (es_exceptions.ConnectionError):
+            raise errors.ConnectionFailed("Could not connect to Elastic Search")
+        except es_exceptions.TransportError:
+            raise errors.OperationFailed("Could not remove test documents")
         self.commit()
 
     def _stream_search(self, *args, **kwargs):
@@ -97,8 +111,15 @@ class DocManager():
         start = 0
         step = 10
         while True:
-            response = self.elastic.search(*args, from_=start,
-                                           size=step, **kwargs)
+            try:
+                response = self.elastic.search(*args, from_=start,
+                                               size=step, **kwargs)
+            except (es_exceptions.ConnectionError):
+                raise errors.ConnectionFailed(
+                    "Could not connect to Elastic Search")
+            except es_exceptions.TransportError:
+                raise errors.OperationFailed(
+                    "Could not retrieve documents from Elastic Search")
             hitcount = response.get("hits",{}).get("total",0)
             if start < hitcount:
                 for doc in response["hits"].get("hits",[]):
@@ -139,15 +160,19 @@ class DocManager():
     def get_last_doc(self):
         """Returns the last document stored in the Elastic engine.
         """
+        try:
+            result = self.elastic.search(
+                "_all",
+                body={
+                    "query": {"match_all": {}},
+                    "sort": [{"_ts":"desc"}]
+                },
+                size=1
+            )["hits"]["hits"]
+        except (es_exceptions.ConnectionError):
+            raise errors.ConnectionFailed("Could not connect to Elastic Search")
+        except es_exceptions.TransportError:
+            raise errors.OperationFailed(
+                "Could not retrieve last document from Elastic Search")
 
-        result = self.elastic.search(
-            "_all",
-            body={
-                "query": {"match_all": {}},
-                "sort": [{"_ts":"desc"}]
-            },
-            size=1
-        )["hits"]["hits"]
-        # TODO: Is this always the format this this will take?
-        # Is there a simpler, API way of getting at the real document?
         return result[0]["_source"] if len(result) > 0 else None
