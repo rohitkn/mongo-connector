@@ -99,7 +99,7 @@ class TestElastic(unittest.TestCase):
             self.fail("Shards cannot be added to mongos")
         self.connector = Connector(
             '%s:%s' % (HOSTNAME, PORTS_ONE['MONGOS']),
-            CONFIG, 'http://localhost:9200',
+            CONFIG, 'localhost:9200',
             ['test.test'],
             '_id', None,
             'mongo_connector/doc_managers/elastic_doc_manager.py')
