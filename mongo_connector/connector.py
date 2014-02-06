@@ -17,7 +17,7 @@
 import json
 import logging
 import logging.handlers
-import optparse
+import argparse
 import os
 import pymongo
 import re
@@ -393,12 +393,12 @@ class Connector(threading.Thread):
 def main():
     """ Starts the mongo connector (assuming CLI)
     """
-    parser = optparse.OptionParser()
+    parser = argparse.ArgumentParser()
 
     #-m is for the main address, which is a host:port pair, ideally of the
     #mongos. For non sharded clusters, it can be the primary.
-    parser.add_option("-m", "--main", action="store", type="string",
-                      dest="main_addr", default="localhost:27217",
+    parser.add_argument("-m", "--main", action="store", type = str,
+                      dest="main_addr", default="localhost:27017",
                       help="""Specify the main address, which is a"""
                       """ host:port pair. For sharded clusters, this"""
                       """ should be the mongos address. For individual"""
@@ -410,9 +410,9 @@ def main():
     #-o is to specify the oplog-config file. This file is used by the system
     #to store the last timestamp read on a specific oplog. This allows for
     #quick recovery from failure.
-    parser.add_option("-o", "--oplog-ts", action="store", type="string",
-                      dest="oplog_config", default="config.txt",
-                      help="""Specify the name of the file that stores the """
+    parser.add_argument("-o", "--oplog-ts", action="store", type=str,
+                      dest="oplog_config", default="oplog.txt",
+                      help="""Specify the name of the file that stores the"""
                       """oplog progress timestamps. """
                       """This file is used by the system to store the last """
                       """timestamp read on a specific oplog. This allows """
@@ -427,15 +427,15 @@ def main():
 
     #--no-dump specifies whether we should read an entire collection from
     #scratch if no timestamp is found in the oplog_config.
-    parser.add_option("--no-dump", action="store_true", default=False, help=
+    parser.add_argument("--no-dump", action="store_true", default=False, help=
                       "If specified, this flag will ensure that "
                       "mongo_connector won't read the entire contents of a "
                       "namespace iff --oplog-ts points to an empty file.")
 
     #--batch-size specifies num docs to read from oplog before updating the
     #--oplog-ts config file with current oplog position
-    parser.add_option("--batch-size", action="store",
-                      default=constants.DEFAULT_BATCH_SIZE, type="int",
+    parser.add_argument("--batch-size", action="store",
+                      default=DEFAULT_BATCH_SIZE, type=int,
                       help="Specify an int to update the --oplog-ts "
                       "config file with latest position of oplog every "
                       "N documents. By default, the oplog config isn't "
@@ -444,9 +444,9 @@ def main():
                       "of falling behind the earliest timestamp in the oplog")
 
     #-t is to specify the URL to the target system being used.
-    parser.add_option("-t", "--target-url", "--target-urls", action="store",
-                      type="string", dest="urls", default=None, help=
-                      """Specify the URL to each target system being """
+    parser.add_argument("-t", "--target-url", action="store", type=str,
+                      dest="url", default=None,
+                      help="""Specify the URL to the target system being """
                       """used. For example, if you were using Solr out of """
                       """the box, you could use '-t """
                       """http://localhost:8080/solr' with the """
@@ -463,7 +463,7 @@ def main():
 
     #-n is to specify the namespaces we want to consider. The default
     #considers all the namespaces
-    parser.add_option("-n", "--namespace-set", action="store", type="string",
+    parser.add_argument("-n", "--namespace-set", action="store", type=str,
                       dest="ns_set", default=None, help=
                       """Used to specify the namespaces we want to """
                       """consider. For example, if we wished to store all """
@@ -476,7 +476,7 @@ def main():
 
     #-u is to specify the mongoDB field that will serve as the unique key
     #for the target system,
-    parser.add_option("-u", "--unique-key", action="store", type="string",
+    parser.add_argument("-u", "--unique-key", action="store", type=str,
                       dest="u_key", default="_id", help=
                       """Used to specify the mongoDB field that will serve """
                       """as the unique key for the target system. """
@@ -486,7 +486,7 @@ def main():
     #-f is to specify the authentication key file. This file is used by mongos
     #to authenticate connections to the shards, and we'll use it in the oplog
     #threads.
-    parser.add_option("-f", "--password-file", action="store", type="string",
+    parser.add_argument("-f", "--password-file", action="store", type=str,
                       dest="auth_file", default=None, help=
                       """Used to store the password for authentication."""
                       """ Use this option if you wish to specify a"""
@@ -495,7 +495,7 @@ def main():
                       """ file should be the password for the admin user.""")
 
     #-p is to specify the password used for authentication.
-    parser.add_option("-p", "--password", action="store", type="string",
+    parser.add_argument("-p", "--password", action="store", type=str,
                       dest="password", default=None, help=
                       """Used to specify the password."""
                       """ This is used by mongos to authenticate"""
@@ -504,7 +504,7 @@ def main():
                       """ this field can be left empty as the default """)
 
     #-a is to specify the username for authentication.
-    parser.add_option("-a", "--admin-username", action="store", type="string",
+    parser.add_argument("-a", "--admin-username", action="store", type=str,
                       dest="admin_name", default="__system", help=
                       """Used to specify the username of an admin user to """
                       """authenticate with. To use authentication, the user """
@@ -512,7 +512,7 @@ def main():
                       """The default username is '__system'""")
 
     #-d is to specify the doc manager file.
-    parser.add_option("-d", "--docManager", "--doc-managers", action="store",
+    parser.add_argument("-d", "--docManager", "--doc-managers", action="store",
                       type="string", dest="doc_managers", default=None, help=
                       """Used to specify the path to each doc manager """
                       """file that will be used. DocManagers should be """
@@ -532,7 +532,7 @@ def main():
                       """section of the wiki""")
 
     #-g is the destination namespace
-    parser.add_option("-g", "--dest-namespace-set", action="store",
+    parser.add_argument("-g", "--dest-namespace-set", action="store",
                       type="string", dest="dest_ns_set", default=None, help=
                       """Specify a destination namespace mapping. Each """
                       """namespace provided in the --namespace-set option """
@@ -543,25 +543,25 @@ def main():
                       """for mongo-to-mongo connections.""")
 
     #-s is to enable syslog logging.
-    parser.add_option("-s", "--enable-syslog", action="store_true",
+    parser.add_argument("-s", "--enable-syslog", action="store_true",
                       dest="enable_syslog", default=False, help=
                       """Used to enable logging to syslog."""
                       """ Use -l to specify syslog host.""")
 
     #--syslog-host is to specify the syslog host.
-    parser.add_option("--syslog-host", action="store", type="string",
+    parser.add_argument("--syslog-host", action="store", type=str,
                       dest="syslog_host", default="localhost:514", help=
                       """Used to specify the syslog host."""
                       """ The default is 'localhost:514'""")
 
     #--syslog-facility is to specify the syslog facility.
-    parser.add_option("--syslog-facility", action="store", type="string",
+    parser.add_argument("--syslog-facility", action="store", type=str,
                       dest="syslog_facility", default="user", help=
                       """Used to specify the syslog facility."""
                       """ The default is 'user'""")
 
     #-i to specify the list of fields to export
-    parser.add_option("-i", "--fields", action="store", type="string",
+    parser.add_argument("-i", "--fields", action="store", type=str,
                       dest="fields", default=None, help=
                       """Used to specify the list of fields to export. """
                       """Specify a field or fields to include in the export. """
@@ -570,7 +570,7 @@ def main():
                       """exported.""")
 
     #--auto-commit-interval to specify auto commit time interval
-    parser.add_option("--auto-commit-interval", action="store",
+    parser.add_argument("--auto-commit-interval", action="store",
                       dest="commit_interval", type="int",
                       default=constants.DEFAULT_COMMIT_INTERVAL,
                       help="""Seconds in-between calls for the Doc Manager"""
@@ -582,7 +582,12 @@ def main():
                       """ interval, which should be preferred to this"""
                       """ option.""")
 
-    (options, args) = parser.parse_args()
+    #-c is to read config from file in json format
+    parser.add_argument("-c", "--config-file", action="store",type=str,
+                      dest="config_file", default=False, help=
+                      """Use -c to specify config file. Read documentation for options""")
+
+    options = parser.parse_args()
 
     logger = logging.getLogger()
     loglevel = logging.INFO
