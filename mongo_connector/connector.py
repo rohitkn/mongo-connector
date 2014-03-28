@@ -584,7 +584,7 @@ def main():
 
     #-c is to read config from file in json format
     parser.add_argument("-c", "--config-file", action="store",type=str,
-                      dest="config_file", default=False, help=
+                      dest="config_file", default=None, help=
                       """Use -c to specify config file. Read documentation for options""")
 
     options = parser.parse_args()
