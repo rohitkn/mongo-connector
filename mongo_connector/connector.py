@@ -435,7 +435,7 @@ def main():
     #--batch-size specifies num docs to read from oplog before updating the
     #--oplog-ts config file with current oplog position
     parser.add_argument("--batch-size", action="store",
-                      default=DEFAULT_BATCH_SIZE, type=int,
+                      default=constants.DEFAULT_BATCH_SIZE, type=int,
                       help="Specify an int to update the --oplog-ts "
                       "config file with latest position of oplog every "
                       "N documents. By default, the oplog config isn't "
@@ -444,8 +444,8 @@ def main():
                       "of falling behind the earliest timestamp in the oplog")
 
     #-t is to specify the URL to the target system being used.
-    parser.add_argument("-t", "--target-url", action="store", type=str,
-                      dest="url", default=None,
+    parser.add_argument("-t", "--target-url", "--target-urls", action="store", type=str,
+                      dest="urls", default=None,
                       help="""Specify the URL to the target system being """
                       """used. For example, if you were using Solr out of """
                       """the box, you could use '-t """
